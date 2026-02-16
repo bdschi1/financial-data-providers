@@ -225,3 +225,13 @@ from bds_data_providers import MarketDataProvider, get_market_provider, YahooMar
 ## License
 
 MIT
+
+---
+
+![Python](https://img.shields.io/badge/python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
+
+![Polars](https://img.shields.io/badge/Polars-CD792C?style=flat&logo=polars&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-150458?style=flat&logo=pandas&logoColor=white)
+![Yahoo Finance](https://img.shields.io/badge/Yahoo_Finance-6001D2?style=flat&logo=yahoo&logoColor=white)
+![Bloomberg](https://img.shields.io/badge/Bloomberg-000000?style=flat&logo=bloomberg&logoColor=white)
+![Interactive Brokers](https://img.shields.io/badge/Interactive_Brokers-D71920?style=flat)
