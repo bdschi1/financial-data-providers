@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bds-data-providers"
+version = "1.0.0"
+description = "Shared market data providers (Yahoo, Bloomberg, IB) for the bds ecosystem."
+requires-python = ">=3.11"
+license = {text = "MIT"}
+
+dependencies = [
+    "polars>=1.0",
+    "pyarrow>=14.0",
+    "yfinance>=0.2.30",
+    "tenacity>=8.0",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+bloomberg = ["blpapi>=3.19"]
+ibkr = ["ib_insync>=0.9.86"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1"]
+all = ["blpapi>=3.19", "ib_insync>=0.9.86"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
