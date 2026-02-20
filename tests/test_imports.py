@@ -11,9 +11,11 @@ def test_top_level_imports():
         YahooProvider,
         BloombergProvider,
         IBProvider,
+        AlphaVantageProvider,
         YahooMarketProvider,
         BloombergMarketProvider,
         IBMarketProvider,
+        AlphaVantageMarketProvider,
         get_provider,
         get_provider_safe,
         available_providers,
@@ -28,8 +30,9 @@ def test_all_exports_match():
     import bds_data_providers
     expected = {
         "DataProvider", "MarketDataProvider",
-        "YahooProvider", "BloombergProvider", "IBProvider",
+        "YahooProvider", "BloombergProvider", "IBProvider", "AlphaVantageProvider",
         "YahooMarketProvider", "BloombergMarketProvider", "IBMarketProvider",
+        "AlphaVantageMarketProvider",
         "get_provider", "get_provider_safe", "available_providers",
         "get_market_provider", "get_market_provider_safe", "available_market_providers",
     }
@@ -48,4 +51,6 @@ def test_submodule_imports():
     import bds_data_providers.yahoo_market
     import bds_data_providers.bloomberg_market
     import bds_data_providers.ib_market
+    import bds_data_providers.alphavantage
+    import bds_data_providers.alphavantage_market
     import bds_data_providers.market_factory

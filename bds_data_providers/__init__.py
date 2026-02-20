@@ -32,6 +32,7 @@ from bds_data_providers.provider import DataProvider
 from bds_data_providers.yahoo import YahooProvider
 from bds_data_providers.bloomberg import BloombergProvider
 from bds_data_providers.ib import IBProvider
+from bds_data_providers.alphavantage import AlphaVantageProvider
 from bds_data_providers.factory import (
     get_provider,
     get_provider_safe,
@@ -43,6 +44,7 @@ from bds_data_providers.market_data_provider import MarketDataProvider
 from bds_data_providers.yahoo_market import YahooMarketProvider
 from bds_data_providers.bloomberg_market import BloombergMarketProvider
 from bds_data_providers.ib_market import IBMarketProvider
+from bds_data_providers.alphavantage_market import AlphaVantageMarketProvider
 from bds_data_providers.market_factory import (
     get_market_provider,
     get_market_provider_safe,
@@ -57,6 +59,7 @@ __all__ = [
     "YahooProvider",
     "BloombergProvider",
     "IBProvider",
+    "AlphaVantageProvider",
     # Polars factory
     "get_provider",
     "get_provider_safe",
@@ -65,6 +68,7 @@ __all__ = [
     "YahooMarketProvider",
     "BloombergMarketProvider",
     "IBMarketProvider",
+    "AlphaVantageMarketProvider",
     # dict/pandas factory
     "get_market_provider",
     "get_market_provider_safe",

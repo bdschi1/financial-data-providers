@@ -51,6 +51,12 @@ _PROVIDER_REGISTRY: list[tuple[str, str, str, str | None]] = [
         "IBProvider",
         "bds_data_providers.ib.is_available",
     ),
+    (
+        "Alpha Vantage",
+        "bds_data_providers.alphavantage",
+        "AlphaVantageProvider",
+        "bds_data_providers.alphavantage.is_available",
+    ),
 ]
 
 # Cache of instantiated providers (singleton per session)
@@ -158,4 +164,5 @@ PROVIDER_DESCRIPTIONS: dict[str, str] = {
     "Yahoo Finance": "Free, no account required. EOD data, ~18hr delay.",
     "Bloomberg": "Professional terminal. Real-time, institutional-grade reference data.",
     "Interactive Brokers": "Brokerage account. Real-time quotes, execution-ready.",
+    "Alpha Vantage": "API key required. Structured fundamentals, earnings, Treasury yields.",
 }
