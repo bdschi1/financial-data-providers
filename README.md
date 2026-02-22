@@ -2,7 +2,7 @@
 
 Shared market data provider package for the bds repo ecosystem. Extracts the data provider abstraction layer that was independently implemented in `ls-portfolio-lab`, `backtest-lab`, and `multi-agent-investment-committee` into a single installable package.
 
-One package, two ABCs, three providers. Every repo in the ecosystem uses the same provider code, the same fallback logic, and the same Bloomberg/IB integration path.
+One package, two ABCs, four providers. Every repo in the ecosystem uses the same provider code, the same fallback logic, and the same Bloomberg/IB/Alpha Vantage integration path.
 
 ## Two ABCs
 
@@ -33,15 +33,16 @@ Methods:
 - `get_quarterly_earnings(ticker) -> Any` -- quarterly revenue/earnings
 - `get_history(ticker, period) -> Any` -- historical OHLCV as pandas DataFrame
 
-## Three Providers
+## Four Providers
 
 | Provider | Cost | Latency | Requirements |
 |---|---|---|---|
 | **Yahoo Finance** | Free | EOD (~18hr delay) | `yfinance` (included in base deps) |
+| **Alpha Vantage** | Free / paid tiers | EOD (free) to real-time (paid) | `requests` + API key (`ALPHA_VANTAGE_API_KEY` env var) |
 | **Bloomberg** | Terminal license | Real-time | `blpapi` + Bloomberg Terminal or B-PIPE |
 | **Interactive Brokers** | Brokerage account | Real-time | `ib_insync` + TWS or IB Gateway running |
 
-Yahoo is always the default. Bloomberg and IB are auto-detected based on whether their Python packages are importable and their services are reachable.
+Yahoo is always the default. Alpha Vantage, Bloomberg, and IB are auto-detected based on whether their Python packages are importable and their services are reachable.
 
 ## Installation
 
@@ -153,19 +154,25 @@ bds-data-providers/
     bds_data_providers/
         __init__.py              # Public API re-exports
         provider.py              # DataProvider ABC (Polars)
-        market_provider.py       # MarketDataProvider ABC (dict/pandas)
-        factory.py               # get_provider(), get_market_provider(), available_*()
-        yahoo_provider.py        # YahooProvider(DataProvider)
-        yahoo_market_provider.py # YahooMarketProvider(MarketDataProvider)
-        bloomberg_provider.py    # BloombergProvider(DataProvider)
-        bloomberg_market_provider.py  # BloombergMarketProvider(MarketDataProvider)
-        ib_provider.py           # IBProvider(DataProvider)
-        ib_market_provider.py    # IBMarketProvider(MarketDataProvider)
+        market_data_provider.py  # MarketDataProvider ABC (dict/pandas)
+        factory.py               # get_provider(), get_provider_safe(), available_providers()
+        market_factory.py        # get_market_provider(), get_market_provider_safe(), available_market_providers()
+        yahoo.py                 # YahooProvider(DataProvider)
+        yahoo_market.py          # YahooMarketProvider(MarketDataProvider)
+        bloomberg.py             # BloombergProvider(DataProvider)
+        bloomberg_market.py      # BloombergMarketProvider(MarketDataProvider)
+        ib.py                    # IBProvider(DataProvider)
+        ib_market.py             # IBMarketProvider(MarketDataProvider)
+        alphavantage.py          # AlphaVantageProvider(DataProvider)
+        alphavantage_market.py   # AlphaVantageMarketProvider(MarketDataProvider)
     tests/
         __init__.py
+        test_provider_abc.py
         test_yahoo_provider.py
+        test_yahoo_market_provider.py
+        test_bloomberg_ib_stubs.py
         test_factory.py
-        ...
+        test_imports.py
 ```
 
 ## How Consuming Repos Integrate
@@ -228,7 +235,7 @@ MIT
 
 ---
 
-![Python](https://img.shields.io/badge/python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
 
 ![Polars](https://img.shields.io/badge/Polars-CD792C?style=flat&logo=polars&logoColor=white)
 ![pandas](https://img.shields.io/badge/pandas-150458?style=flat&logo=pandas&logoColor=white)
