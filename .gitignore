@@ -1,6 +1,7 @@
 # Security
 .env
 .env.*
+!.env.example
 .claude/
 *.pem
 *.key
@@ -14,28 +15,37 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-venv/
-.venv/
-env/
 *.egg-info/
+*.egg
 dist/
 build/
 .eggs/
+*.whl
+*.tar.gz
+venv/
+.venv/
+env/
 
 # Testing / IDE
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.tox/
+.ipynb_checkpoints/
 htmlcov/
 .coverage
 .hypothesis/
 *.log
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
 
 # Local docs
 CLAUDE.md

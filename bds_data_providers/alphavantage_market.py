@@ -48,7 +48,7 @@ def is_available() -> bool:
 # Retry
 # ---------------------------------------------------------------------------
 
-from tenacity import (
+from tenacity import (  # noqa: E402
     before_sleep_log,
     retry,
     retry_if_exception_type,
@@ -343,7 +343,6 @@ class AlphaVantageMarketProvider(MarketDataProvider):
                 reported = q.get("reportedDate", "")
                 est = q.get("estimatedEPS")
                 actual = q.get("reportedEPS")
-                surprise = q.get("surprise")
                 surprise_pct = q.get("surprisePercentage")
 
                 rows.append({
