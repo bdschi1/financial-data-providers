@@ -86,3 +86,37 @@ class DataProvider(ABC):
         Returns as decimal (e.g., 0.05 for 5%).
         """
         ...
+
+    # ------------------------------------------------------------------
+    # Convenience methods (concrete — delegate to abstract methods)
+    # ------------------------------------------------------------------
+
+    def fetch_price_history(self, ticker: str, days: int = 400) -> list[dict]:
+        """Single-ticker price history as list of dicts.
+
+        Convenience wrapper around fetch_daily_prices() for consumers that
+        need one ticker at a time in dict format (e.g. fund-tracker-13f).
+
+        Returns list of dicts with keys: date, open, high, low, close, volume.
+        Sorted oldest → newest.  Returns [] on failure.
+        """
+        from datetime import timedelta
+
+        end = date.today()
+        start = end - timedelta(days=days)
+        try:
+            df = self.fetch_daily_prices([ticker], start, end)
+        except Exception:
+            return []
+        rows = df.filter(pl.col("ticker") == ticker).sort("date")
+        return [
+            {
+                "date": r["date"],
+                "open": r["open"],
+                "high": r["high"],
+                "low": r["low"],
+                "close": r["close"],
+                "volume": r["volume"],
+            }
+            for r in rows.iter_rows(named=True)
+        ]
