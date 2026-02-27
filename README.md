@@ -13,6 +13,9 @@ Used by four repos in the ecosystem: `backtest-lab`, `ls-portfolio-lab`, `multi-
 
 This is a continually developed project. Features, interfaces, and test coverage expand over time as new research ideas and workflow needs arise.
 
+**Key questions this project answers:**
+- *How do I pull market data from multiple sources through one consistent interface?*
+
 ## Two ABCs
 
 This package exposes two abstract base classes because the consuming repos have fundamentally different data needs:
