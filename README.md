@@ -1,8 +1,17 @@
 # bds-data-providers
 
+![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
+![Polars](https://img.shields.io/badge/Polars-CD792C?style=flat&logo=polars&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-150458?style=flat&logo=pandas&logoColor=white)
+![Yahoo Finance](https://img.shields.io/badge/Yahoo_Finance-6001D2?style=flat&logo=yahoo&logoColor=white)
+![Bloomberg](https://img.shields.io/badge/Bloomberg-000000?style=flat&logo=bloomberg&logoColor=white)
+![Interactive Brokers](https://img.shields.io/badge/Interactive_Brokers-D71920?style=flat)
+
 A shared Python package that provides a single, consistent interface for pulling market data from multiple sources — Yahoo Finance, Alpha Vantage, Bloomberg, and Interactive Brokers. Instead of each project writing its own data-fetching code, they install this package and get the same provider logic, the same fallback behavior, and the same optional Bloomberg/IB integration path.
 
 Used by four repos in the ecosystem: `backtest-lab`, `ls-portfolio-lab`, `multi-agent-investment-committee`, and `fund-tracker-13f`.
+
+This is a continually developed project. Features, interfaces, and test coverage expand over time as new research ideas and workflow needs arise.
 
 ## Two ABCs
 
@@ -191,16 +200,18 @@ tests/
 | `fund-tracker-13f` | `DataProvider` | `get_provider()` |
 | `multi-agent-investment-committee` | `MarketDataProvider` | `get_market_provider()` |
 
+## Contributing
+
+Contributions welcome. Areas for improvement:
+- Additional data provider backends
+- Extended market data fields and endpoints
+- Enhanced caching and rate limiting
+- Broader test coverage for optional providers
+
+## Status
+
+This project is under active, ongoing development. Core ABC interfaces, Yahoo provider, and factory pattern are stable. New provider backends and data fields are added as consuming repos require them.
+
 ## License
 
 MIT
-
----
-
-![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat&logo=python&logoColor=white)
-
-![Polars](https://img.shields.io/badge/Polars-CD792C?style=flat&logo=polars&logoColor=white)
-![pandas](https://img.shields.io/badge/pandas-150458?style=flat&logo=pandas&logoColor=white)
-![Yahoo Finance](https://img.shields.io/badge/Yahoo_Finance-6001D2?style=flat&logo=yahoo&logoColor=white)
-![Bloomberg](https://img.shields.io/badge/Bloomberg-000000?style=flat&logo=bloomberg&logoColor=white)
-![Interactive Brokers](https://img.shields.io/badge/Interactive_Brokers-D71920?style=flat)
