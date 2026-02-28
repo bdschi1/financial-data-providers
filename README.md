@@ -194,6 +194,28 @@ tests/
     test_bloomberg_ib_stubs.py
 ```
 
+## MCP Connectors (Claude Code / Claude Cowork)
+
+The repo includes a `.mcp.json` config that connects Claude Code sessions to external financial data providers via the [Model Context Protocol](https://modelcontextprotocol.io/). These complement the Python provider layer — MCP gives the AI assistant direct access to data terminal APIs during a session, while the Python ABCs serve programmatic workflows.
+
+| Provider | What It Provides |
+|----------|-----------------|
+| Daloopa | Structured financial data extraction |
+| Morningstar | Fund/stock data and ratings |
+| S&P Global (Capital IQ) | Fundamental data, estimates, transactions |
+| FactSet | Pricing, fundamentals, analytics |
+| Moody's | Credit ratings and risk data |
+| MT Newswires | Real-time financial news |
+| Aiera | Earnings call transcripts and events |
+| LSEG (Refinitiv) | Fixed income, FX, equities, macro |
+| PitchBook | PE/VC/M&A deal data |
+| Chronograph | PE portfolio monitoring |
+| Egnyte | Document management |
+
+Each connector requires an active subscription with the respective provider. If unavailable, connectors are silently ignored — no errors, no impact on the Python providers.
+
+---
+
 ## Which Repo Uses Which ABC
 
 | Repo | ABC | Factory function |
@@ -205,15 +227,9 @@ tests/
 
 ## Contributing
 
-Contributions welcome. Areas for improvement:
-- Additional data provider backends
-- Extended market data fields and endpoints
-- Enhanced caching and rate limiting
-- Broader test coverage for optional providers
+Under active development. Contributions welcome — areas for improvement include additional provider backends, market data fields, caching/rate limiting, and test coverage for optional providers.
 
-## Status
-
-This project is under active, ongoing development. Core ABC interfaces, Yahoo provider, and factory pattern are stable. New provider backends and data fields are added as consuming repos require them.
+***Curiosity compounds. Rigor endures.***
 
 ## License
 
