@@ -22,6 +22,18 @@ def test_top_level_imports():
         get_market_provider,
         get_market_provider_safe,
         available_market_providers,
+        sharpe_ratio_variance,
+        probabilistic_sharpe_ratio,
+        minimum_track_record_length,
+        critical_sharpe_ratio,
+        sharpe_ratio_power,
+        posterior_fdr,
+        observed_fdr,
+        control_for_fdr,
+        adjusted_p_values_bonferroni,
+        adjusted_p_values_sidak,
+        adjusted_p_values_holm,
+        expected_maximum_sharpe_ratio,
     )
 
 
@@ -35,6 +47,11 @@ def test_all_exports_match():
         "AlphaVantageMarketProvider",
         "get_provider", "get_provider_safe", "available_providers",
         "get_market_provider", "get_market_provider_safe", "available_market_providers",
+        "sharpe_ratio_variance", "probabilistic_sharpe_ratio",
+        "minimum_track_record_length", "critical_sharpe_ratio",
+        "sharpe_ratio_power", "posterior_fdr", "observed_fdr", "control_for_fdr",
+        "adjusted_p_values_bonferroni", "adjusted_p_values_sidak",
+        "adjusted_p_values_holm", "expected_maximum_sharpe_ratio",
     }
     actual = set(bds_data_providers.__all__)
     assert expected == actual
@@ -54,3 +71,4 @@ def test_submodule_imports():
     import bds_data_providers.alphavantage
     import bds_data_providers.alphavantage_market
     import bds_data_providers.market_factory
+    import bds_data_providers.sharpe_inference

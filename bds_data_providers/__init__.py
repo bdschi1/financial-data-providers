@@ -39,6 +39,22 @@ from bds_data_providers.factory import (
     available_providers,
 )
 
+# --- Sharpe ratio inference (shared by backtest-lab, ls-portfolio-lab) ---
+from bds_data_providers.sharpe_inference import (
+    sharpe_ratio_variance,
+    probabilistic_sharpe_ratio,
+    minimum_track_record_length,
+    critical_sharpe_ratio,
+    sharpe_ratio_power,
+    posterior_fdr,
+    observed_fdr,
+    control_for_fdr,
+    adjusted_p_values_bonferroni,
+    adjusted_p_values_sidak,
+    adjusted_p_values_holm,
+    expected_maximum_sharpe_ratio,
+)
+
 # --- dict/pandas-based ABC (multi-agent-investment-committee) ---
 from bds_data_providers.market_data_provider import MarketDataProvider
 from bds_data_providers.yahoo_market import YahooMarketProvider
@@ -73,4 +89,17 @@ __all__ = [
     "get_market_provider",
     "get_market_provider_safe",
     "available_market_providers",
+    # Sharpe ratio inference
+    "sharpe_ratio_variance",
+    "probabilistic_sharpe_ratio",
+    "minimum_track_record_length",
+    "critical_sharpe_ratio",
+    "sharpe_ratio_power",
+    "posterior_fdr",
+    "observed_fdr",
+    "control_for_fdr",
+    "adjusted_p_values_bonferroni",
+    "adjusted_p_values_sidak",
+    "adjusted_p_values_holm",
+    "expected_maximum_sharpe_ratio",
 ]

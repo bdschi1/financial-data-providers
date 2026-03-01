@@ -204,6 +204,11 @@ class YahooProvider(DataProvider):
         if not frames:
             return pl.DataFrame(schema=empty_schema)
 
+        # Normalize volume dtype before concat (yfinance returns mixed Int64/Float64)
+        for i in range(len(frames)):
+            if "volume" in frames[i].columns:
+                frames[i] = frames[i].with_columns(pl.col("volume").cast(pl.Float64))
+
         result = pl.concat(frames, how="diagonal")
 
         # Standardize column names
