@@ -51,3 +51,12 @@ Desktop.ini
 CLAUDE.md
 
 HOW_IT_WORKS.md
+offload_temp/
+*.pt
+*.bin
+*.safetensors
+*.gguf
+hf_cache/
+results/
+outputs/
+logs/
