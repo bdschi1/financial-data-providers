@@ -16,52 +16,7 @@ This is a continually developed project. Features, interfaces, and test coverage
 **Key questions this project answers:**
 - *How do I pull market data from multiple sources through one consistent interface?*
 
-## Two ABCs
-
-This package exposes two abstract base classes because the consuming repos have fundamentally different data needs:
-
-### `DataProvider` (Polars-native)
-
-Used by **backtest-lab**, **ls-portfolio-lab**, and **fund-tracker-13f**. Designed for bulk time-series work where Polars DataFrames are the primary data structure.
-
-Abstract methods:
-- `fetch_daily_prices(tickers, start, end) -> pl.DataFrame` — OHLCV + adj_close, long format
-- `fetch_ticker_info(ticker) -> dict` — market_cap, sector, industry, beta, etc.
-- `fetch_current_prices(tickers) -> dict[str, float]` — latest close per ticker
-- `fetch_risk_free_rate() -> float` — annualized risk-free rate (13-week T-bill)
-
-Convenience method:
-- `fetch_price_history(ticker, days) -> list[dict]` — single-ticker wrapper around `fetch_daily_prices()` returning a list of dicts with date/OHLCV keys, sorted oldest-first. Returns `[]` on failure.
-
-### `MarketDataProvider` (dict/pandas)
-
-Used by **multi-agent-investment-committee**. Designed for the agent tool layer where each tool expects dicts or pandas DataFrames.
-
-In plain terms: the multi-agent system's tools need company profiles, fundamentals, and earnings data in simple key-value format — this ABC standardizes that interface across providers.
-
-Methods:
-- `get_ticker_object(ticker) -> Any` — underlying ticker/session object
-- `get_company_overview(ticker) -> dict` — structured company profile
-- `get_price_data(ticker, period) -> dict` — price + performance metrics
-- `get_fundamentals(ticker) -> dict` — valuation, profitability, growth, balance sheet
-- `get_info(ticker) -> dict` — raw key-value info dict
-- `get_insider_transactions(ticker) -> Any` — insider buy/sell data
-- `get_earnings_history(ticker) -> Any` — earnings surprise history
-- `get_quarterly_earnings(ticker) -> Any` — quarterly revenue/earnings
-- `get_history(ticker, period) -> Any` — historical OHLCV as pandas DataFrame
-
-## Four Providers
-
-| Provider | Cost | Latency | Requirements |
-|---|---|---|---|
-| **Yahoo Finance** | Free | EOD (~18hr delay) | `yfinance` (included in base deps) |
-| **Alpha Vantage** | Free / paid tiers | EOD (free) to real-time (paid) | `requests` + API key (`ALPHAVANTAGE_API_KEY` env var) |
-| **Bloomberg** | Terminal license | Real-time | `blpapi` + Bloomberg Terminal or B-PIPE |
-| **Interactive Brokers** | Brokerage account | Real-time | `ib_insync` + TWS or IB Gateway running |
-
-Yahoo is always the default. Alpha Vantage, Bloomberg, and IB are auto-detected based on whether their Python packages are importable and their services are reachable.
-
-## Installation
+## Quick Start
 
 ```bash
 # Base install (Yahoo only)
@@ -86,9 +41,56 @@ dependencies = [
 ]
 ```
 
-## Usage
+## How It Works
 
-### DataProvider (Polars) — for backtest-lab / ls-portfolio-lab / fund-tracker-13f
+### Two ABCs
+
+This package exposes two abstract base classes because the consuming repos have fundamentally different data needs:
+
+#### `DataProvider` (Polars-native)
+
+Used by **backtest-lab**, **ls-portfolio-lab**, and **fund-tracker-13f**. Designed for bulk time-series work where Polars DataFrames are the primary data structure.
+
+Abstract methods:
+- `fetch_daily_prices(tickers, start, end) -> pl.DataFrame` — OHLCV + adj_close, long format
+- `fetch_ticker_info(ticker) -> dict` — market_cap, sector, industry, beta, etc.
+- `fetch_current_prices(tickers) -> dict[str, float]` — latest close per ticker
+- `fetch_risk_free_rate() -> float` — annualized risk-free rate (13-week T-bill)
+
+Convenience method:
+- `fetch_price_history(ticker, days) -> list[dict]` — single-ticker wrapper around `fetch_daily_prices()` returning a list of dicts with date/OHLCV keys, sorted oldest-first. Returns `[]` on failure.
+
+#### `MarketDataProvider` (dict/pandas)
+
+Used by **multi-agent-investment-committee**. Designed for the agent tool layer where each tool expects dicts or pandas DataFrames.
+
+In plain terms: the multi-agent system's tools need company profiles, fundamentals, and earnings data in simple key-value format — this ABC standardizes that interface across providers.
+
+Methods:
+- `get_ticker_object(ticker) -> Any` — underlying ticker/session object
+- `get_company_overview(ticker) -> dict` — structured company profile
+- `get_price_data(ticker, period) -> dict` — price + performance metrics
+- `get_fundamentals(ticker) -> dict` — valuation, profitability, growth, balance sheet
+- `get_info(ticker) -> dict` — raw key-value info dict
+- `get_insider_transactions(ticker) -> Any` — insider buy/sell data
+- `get_earnings_history(ticker) -> Any` — earnings surprise history
+- `get_quarterly_earnings(ticker) -> Any` — quarterly revenue/earnings
+- `get_history(ticker, period) -> Any` — historical OHLCV as pandas DataFrame
+
+### Four Providers
+
+| Provider | Cost | Latency | Requirements |
+|---|---|---|---|
+| **Yahoo Finance** | Free | EOD (~18hr delay) | `yfinance` (included in base deps) |
+| **Alpha Vantage** | Free / paid tiers | EOD (free) to real-time (paid) | `requests` + API key (`ALPHAVANTAGE_API_KEY` env var) |
+| **Bloomberg** | Terminal license | Real-time | `blpapi` + Bloomberg Terminal or B-PIPE |
+| **Interactive Brokers** | Brokerage account | Real-time | `ib_insync` + TWS or IB Gateway running |
+
+Yahoo is always the default. Alpha Vantage, Bloomberg, and IB are auto-detected based on whether their Python packages are importable and their services are reachable.
+
+### Usage
+
+#### DataProvider (Polars) — for backtest-lab / ls-portfolio-lab / fund-tracker-13f
 
 ```python
 from bds_data_providers import YahooProvider, get_provider
@@ -121,7 +123,7 @@ rf = provider.fetch_risk_free_rate()
 print(rf)  # 0.052
 ```
 
-### MarketDataProvider (dict/pandas) — for multi-agent-investment-committee
+#### MarketDataProvider (dict/pandas) — for multi-agent-investment-committee
 
 ```python
 from bds_data_providers import YahooMarketProvider, get_market_provider
@@ -149,7 +151,7 @@ hist = provider.get_history("AAPL", period="1y")
 print(hist.columns)  # Open, High, Low, Close, Volume
 ```
 
-### Safe fallback (production use)
+#### Safe fallback (production use)
 
 ```python
 from bds_data_providers import get_provider_safe, get_market_provider_safe
@@ -159,7 +161,7 @@ provider = get_provider_safe("Bloomberg")
 market_provider = get_market_provider_safe("Bloomberg")
 ```
 
-### Listing available providers
+#### Listing available providers
 
 ```python
 from bds_data_providers import available_providers, available_market_providers
@@ -167,6 +169,15 @@ from bds_data_providers import available_providers, available_market_providers
 print(available_providers())         # ["Yahoo Finance", "Bloomberg"] (if blpapi installed)
 print(available_market_providers())  # ["Yahoo Finance", "Bloomberg"]
 ```
+
+### Which Repo Uses Which ABC
+
+| Repo | ABC | Factory function |
+|---|---|---|
+| `backtest-lab` | `DataProvider` | `get_provider()` |
+| `ls-portfolio-lab` | `DataProvider` | `get_provider()` |
+| `fund-tracker-13f` | `DataProvider` | `get_provider()` |
+| `multi-agent-investment-committee` | `MarketDataProvider` | `get_market_provider()` |
 
 ## Architecture
 
@@ -194,23 +205,18 @@ tests/
     test_bloomberg_ib_stubs.py
 ```
 
----
+## Testing
 
-## Which Repo Uses Which ABC
-
-| Repo | ABC | Factory function |
-|---|---|---|
-| `backtest-lab` | `DataProvider` | `get_provider()` |
-| `ls-portfolio-lab` | `DataProvider` | `get_provider()` |
-| `fund-tracker-13f` | `DataProvider` | `get_provider()` |
-| `multi-agent-investment-committee` | `MarketDataProvider` | `get_market_provider()` |
+```bash
+pytest tests/ -v
+```
 
 ## Contributing
 
 Under active development. Contributions welcome — areas for improvement include additional provider backends, market data fields, caching/rate limiting, and test coverage for optional providers.
 
-***Curiosity compounds. Rigor endures.***
-
 ## License
 
 MIT
+
+***Curiosity compounds. Rigor endures.***
