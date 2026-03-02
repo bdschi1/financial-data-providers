@@ -127,3 +127,46 @@ class MarketDataProvider(ABC):
         Columns: Open, High, Low, Close, Volume (at minimum).
         """
         ...
+
+    # ------------------------------------------------------------------
+    # Options data methods (non-abstract — concrete defaults return None)
+    # ------------------------------------------------------------------
+
+    def get_options_expirations(self, ticker: str) -> list[str] | None:
+        """Return list of available options expiry dates (ISO strings).
+
+        Returns None if the provider does not support options data.
+        """
+        return None
+
+    def get_options_chain(
+        self, ticker: str, expiration: str | None = None
+    ) -> dict[str, Any] | None:
+        """Return a single-expiry options chain with standardized schema.
+
+        Returns dict with keys:
+            ticker, expiration, provider, spot,
+            calls: [{strike, last_price, bid, ask, volume, open_interest,
+                     implied_vol, delta, gamma, theta, vega, in_the_money}],
+            puts: [same schema]
+
+        Returns None if the provider does not support options data.
+        """
+        return None
+
+    def get_iv_surface(
+        self, ticker: str, num_expirations: int = 5
+    ) -> dict[str, Any] | None:
+        """Return a multi-expiry implied vol surface.
+
+        Returns dict with keys:
+            iv_surface_pct: dict mapping (maturity_label, strike_pct) -> IV%
+            atm_term_structure: dict mapping maturity_label -> ATM IV%
+            skew_by_maturity: dict mapping maturity_label -> skew metrics
+            summary: dict with avg_skew_25d, term_structure, interpretation
+            data_quality: dict with coverage_pct, avg_volume, num_expirations
+            provider: str
+
+        Returns None if the provider does not support options data.
+        """
+        return None

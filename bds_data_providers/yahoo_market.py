@@ -160,6 +160,121 @@ class YahooMarketProvider(MarketDataProvider):
         """Return historical price DataFrame (pandas) from Yahoo Finance."""
         return yf.Ticker(ticker).history(period=period)
 
+    # ------------------------------------------------------------------
+    # Options data methods
+    # ------------------------------------------------------------------
+
+    def get_options_expirations(self, ticker: str) -> list[str] | None:
+        """Return available options expiry dates from Yahoo Finance."""
+        try:
+            exps = yf.Ticker(ticker).options
+            if not exps:
+                return None
+            return list(exps)
+        except Exception as e:
+            logger.warning("Failed to get options expirations for %s: %s", ticker, e)
+            return None
+
+    def get_options_chain(
+        self, ticker: str, expiration: str | None = None
+    ) -> dict[str, Any] | None:
+        """Return a single-expiry options chain from Yahoo Finance.
+
+        Greeks are not available from yfinance and will be None.
+        """
+        try:
+            yt = yf.Ticker(ticker)
+            if expiration is None:
+                exps = yt.options
+                if not exps:
+                    return None
+                expiration = exps[0]
+
+            chain = yt.option_chain(expiration)
+            info = yt.info
+            spot = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+
+            def _map_contracts(df: Any) -> list[dict[str, Any]]:
+                rows = []
+                if df is None or df.empty:
+                    return rows
+                for _, row in df.iterrows():
+                    rows.append({
+                        "strike": float(row.get("strike", 0)),
+                        "last_price": float(row["lastPrice"]) if "lastPrice" in row else None,
+                        "bid": float(row["bid"]) if "bid" in row else None,
+                        "ask": float(row["ask"]) if "ask" in row else None,
+                        "volume": int(row["volume"]) if "volume" in row and row["volume"] == row["volume"] else 0,
+                        "open_interest": int(row["openInterest"]) if "openInterest" in row and row["openInterest"] == row["openInterest"] else 0,
+                        "implied_vol": round(float(row["impliedVolatility"]) * 100, 2) if "impliedVolatility" in row and row["impliedVolatility"] == row["impliedVolatility"] else None,
+                        "delta": None,
+                        "gamma": None,
+                        "theta": None,
+                        "vega": None,
+                        "in_the_money": bool(row.get("inTheMoney", False)),
+                    })
+                return rows
+
+            return {
+                "ticker": ticker,
+                "expiration": expiration,
+                "provider": self.name,
+                "spot": spot,
+                "calls": _map_contracts(chain.calls),
+                "puts": _map_contracts(chain.puts),
+            }
+        except Exception as e:
+            logger.warning("Failed to get options chain for %s (%s): %s", ticker, expiration, e)
+            return None
+
+    def get_iv_surface(
+        self, ticker: str, num_expirations: int = 5
+    ) -> dict[str, Any] | None:
+        """Build an IV surface from Yahoo Finance options data.
+
+        Selects expirations spread across the term structure and
+        delegates surface construction to build_iv_surface_from_chains().
+        """
+        try:
+            from bds_data_providers.options_utils import build_iv_surface_from_chains
+
+            exps = self.get_options_expirations(ticker)
+            if not exps:
+                return None
+
+            # Select expirations spread across available dates
+            if len(exps) <= num_expirations:
+                selected = exps
+            else:
+                step = len(exps) / num_expirations
+                selected = [exps[int(i * step)] for i in range(num_expirations)]
+
+            # Get spot price
+            info = yf.Ticker(ticker).info
+            spot = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+            if spot <= 0:
+                return None
+
+            # Fetch chains
+            chains = []
+            for exp in selected:
+                chain = self.get_options_chain(ticker, exp)
+                if chain:
+                    chains.append(chain)
+
+            if not chains:
+                return None
+
+            return build_iv_surface_from_chains(
+                ticker=ticker,
+                provider_name=self.name,
+                spot=spot,
+                chains=chains,
+            )
+        except Exception as e:
+            logger.warning("Failed to build IV surface for %s: %s", ticker, e)
+            return None
+
 
 # ---------------------------------------------------------------------------
 # Shared formatting helpers

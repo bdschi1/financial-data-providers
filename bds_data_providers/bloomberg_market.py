@@ -440,6 +440,220 @@ class BloombergMarketProvider(MarketDataProvider):
         start = end - timedelta(days=days)
         return self._hist_request(ticker, start, end)
 
+    # ------------------------------------------------------------------
+    # Options data methods
+    # ------------------------------------------------------------------
+
+    def get_options_expirations(self, ticker: str) -> list[str] | None:
+        """Return available options expiry dates from Bloomberg OPT_CHAIN."""
+        try:
+            session = self._bbg.connect()
+        except (ConnectionError, ImportError) as exc:
+            logger.warning("Bloomberg connection failed for options: %s", exc)
+            return None
+
+        try:
+            refdata = session.getService("//blp/refdata")
+            request = refdata.createRequest("ReferenceDataRequest")
+            request.append("securities", _to_bbg(ticker))
+            request.append("fields", "OPT_CHAIN")
+
+            session.sendRequest(request)
+            expirations: set[str] = set()
+            done = False
+            while not done:
+                event = session.nextEvent(5000)
+                for msg in event:
+                    if msg.messageType() == blpapi.Name("ReferenceDataResponse"):
+                        arr = msg.getElement("securityData")
+                        if arr.numValues() == 0:
+                            continue
+                        sec = arr.getValueAsElement(0)
+                        if sec.hasElement("securityError"):
+                            continue
+                        fd = sec.getElement("fieldData")
+                        if fd.hasElement("OPT_CHAIN"):
+                            chain_data = fd.getElement("OPT_CHAIN")
+                            for i in range(chain_data.numValues()):
+                                row = chain_data.getValueAsElement(i)
+                                exp_str = _safe_str(row, "Expiration")
+                                if exp_str:
+                                    expirations.add(exp_str[:10])  # ISO date portion
+                if event.eventType() == blpapi.Event.RESPONSE:
+                    done = True
+
+            if not expirations:
+                return None
+            return sorted(expirations)
+        except Exception as e:
+            logger.warning("Failed to get options expirations for %s: %s", ticker, e)
+            return None
+
+    def get_options_chain(
+        self, ticker: str, expiration: str | None = None
+    ) -> dict[str, Any] | None:
+        """Return a single-expiry options chain from Bloomberg.
+
+        Uses ReferenceDataRequest with IV, greeks, and market data fields.
+        """
+        try:
+            if expiration is None:
+                exps = self.get_options_expirations(ticker)
+                if not exps:
+                    return None
+                expiration = exps[0]
+
+            session = self._bbg.connect()
+            refdata = session.getService("//blp/refdata")
+
+            # Get spot price
+            spot_data = self._ref_request(ticker, ["PX_LAST"])
+            spot = spot_data.get("PX_LAST", 0)
+
+            # Build option tickers for this expiration
+            # Bloomberg option tickers: e.g. "AAPL US 03/21/26 C150 Equity"
+            # We request the chain filtered by expiration
+            opt_fields = [
+                "PX_LAST", "PX_BID", "PX_ASK", "VOLUME", "OPEN_INT",
+                "IVOL_MID", "DELTA", "GAMMA", "VEGA", "THETA",
+                "OPT_STRIKE_PX", "OPT_PUT_CALL",
+            ]
+
+            # Use OPT_CHAIN with expiration override
+            request = refdata.createRequest("ReferenceDataRequest")
+            request.append("securities", _to_bbg(ticker))
+            request.append("fields", "OPT_CHAIN")
+
+            overrides = request.getElement("overrides")
+            ovrd = overrides.appendElement()
+            ovrd.setElement("fieldId", "OPTION_CHAIN_EXPIRATION_DT")
+            ovrd.setElement("value", expiration.replace("-", ""))
+
+            session.sendRequest(request)
+            option_tickers: list[str] = []
+            done = False
+            while not done:
+                event = session.nextEvent(5000)
+                for msg in event:
+                    if msg.messageType() == blpapi.Name("ReferenceDataResponse"):
+                        arr = msg.getElement("securityData")
+                        if arr.numValues() == 0:
+                            continue
+                        sec = arr.getValueAsElement(0)
+                        if sec.hasElement("securityError"):
+                            continue
+                        fd = sec.getElement("fieldData")
+                        if fd.hasElement("OPT_CHAIN"):
+                            chain_el = fd.getElement("OPT_CHAIN")
+                            for i in range(chain_el.numValues()):
+                                row = chain_el.getValueAsElement(i)
+                                sec_desc = _safe_str(row, "Security Description")
+                                if sec_desc:
+                                    option_tickers.append(sec_desc)
+                if event.eventType() == blpapi.Event.RESPONSE:
+                    done = True
+
+            if not option_tickers:
+                return None
+
+            # Fetch data for each option contract
+            calls: list[dict[str, Any]] = []
+            puts: list[dict[str, Any]] = []
+
+            # Batch request for all option tickers
+            request2 = refdata.createRequest("ReferenceDataRequest")
+            for ot in option_tickers:
+                request2.append("securities", ot)
+            for f in opt_fields:
+                request2.append("fields", f)
+
+            session.sendRequest(request2)
+            done = False
+            while not done:
+                event = session.nextEvent(10000)
+                for msg in event:
+                    if msg.messageType() == blpapi.Name("ReferenceDataResponse"):
+                        sec_arr = msg.getElement("securityData")
+                        for j in range(sec_arr.numValues()):
+                            sec_el = sec_arr.getValueAsElement(j)
+                            if sec_el.hasElement("securityError"):
+                                continue
+                            fd = sec_el.getElement("fieldData")
+                            contract = {
+                                "strike": _safe_float(fd, "OPT_STRIKE_PX"),
+                                "last_price": _safe_float(fd, "PX_LAST"),
+                                "bid": _safe_float(fd, "PX_BID"),
+                                "ask": _safe_float(fd, "PX_ASK"),
+                                "volume": int(_safe_float(fd, "VOLUME")),
+                                "open_interest": int(_safe_float(fd, "OPEN_INT")),
+                                "implied_vol": round(_safe_float(fd, "IVOL_MID") * 100, 2) if _safe_float(fd, "IVOL_MID") > 0 else None,
+                                "delta": _safe_float(fd, "DELTA") or None,
+                                "gamma": _safe_float(fd, "GAMMA") or None,
+                                "theta": _safe_float(fd, "THETA") or None,
+                                "vega": _safe_float(fd, "VEGA") or None,
+                                "in_the_money": _safe_float(fd, "OPT_STRIKE_PX") < spot if _safe_str(fd, "OPT_PUT_CALL") == "Put" else _safe_float(fd, "OPT_STRIKE_PX") > spot,
+                            }
+                            pc = _safe_str(fd, "OPT_PUT_CALL")
+                            if pc == "Call":
+                                calls.append(contract)
+                            else:
+                                puts.append(contract)
+                if event.eventType() == blpapi.Event.RESPONSE:
+                    done = True
+
+            return {
+                "ticker": ticker,
+                "expiration": expiration,
+                "provider": self.name,
+                "spot": spot,
+                "calls": sorted(calls, key=lambda c: c["strike"]),
+                "puts": sorted(puts, key=lambda c: c["strike"]),
+            }
+        except Exception as e:
+            logger.warning("Failed to get options chain for %s: %s", ticker, e)
+            return None
+
+    def get_iv_surface(
+        self, ticker: str, num_expirations: int = 5
+    ) -> dict[str, Any] | None:
+        """Build an IV surface from Bloomberg options data."""
+        try:
+            from bds_data_providers.options_utils import build_iv_surface_from_chains
+
+            exps = self.get_options_expirations(ticker)
+            if not exps:
+                return None
+
+            if len(exps) <= num_expirations:
+                selected = exps
+            else:
+                step = len(exps) / num_expirations
+                selected = [exps[int(i * step)] for i in range(num_expirations)]
+
+            spot_data = self._ref_request(ticker, ["PX_LAST"])
+            spot = spot_data.get("PX_LAST", 0)
+            if spot <= 0:
+                return None
+
+            chains = []
+            for exp in selected:
+                chain = self.get_options_chain(ticker, exp)
+                if chain:
+                    chains.append(chain)
+
+            if not chains:
+                return None
+
+            return build_iv_surface_from_chains(
+                ticker=ticker,
+                provider_name=self.name,
+                spot=spot,
+                chains=chains,
+            )
+        except Exception as e:
+            logger.warning("Failed to build IV surface for %s: %s", ticker, e)
+            return None
+
     def close(self) -> None:
         """Shut down the Bloomberg session."""
         self._bbg.close()

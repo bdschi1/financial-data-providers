@@ -371,6 +371,206 @@ class IBMarketProvider(MarketDataProvider):
         days = _period_to_days(period)
         return self._get_bars(ticker, days)
 
+    # ------------------------------------------------------------------
+    # Options data methods
+    # ------------------------------------------------------------------
+
+    def get_options_expirations(self, ticker: str) -> list[str] | None:
+        """Return available options expiry dates from IB."""
+        try:
+            ib = self._conn.connect()
+        except (ConnectionError, ImportError) as exc:
+            logger.warning("IB connection failed for options: %s", exc)
+            return None
+
+        try:
+            contract = Stock(ticker, "SMART", "USD")
+            ib.qualifyContracts(contract)
+            params = ib.reqSecDefOptParams(
+                underlyingSymbol=ticker,
+                futFopExchange="",
+                underlyingSecType="STK",
+                underlyingConId=contract.conId,
+            )
+            ib.sleep(0.5)
+
+            if not params:
+                return None
+
+            # Collect all expirations across exchanges, prefer SMART
+            expirations: set[str] = set()
+            for p in params:
+                for exp in p.expirations:
+                    # IB format: YYYYMMDD -> ISO
+                    iso = f"{exp[:4]}-{exp[4:6]}-{exp[6:8]}"
+                    expirations.add(iso)
+
+            if not expirations:
+                return None
+            return sorted(expirations)
+        except Exception as e:
+            logger.warning("Failed to get options expirations for %s: %s", ticker, e)
+            return None
+
+    def get_options_chain(
+        self, ticker: str, expiration: str | None = None
+    ) -> dict[str, Any] | None:
+        """Return a single-expiry options chain from IB.
+
+        Fetches IV and greeks via reqMktData for each strike.
+        Respects IB pacing limits with sleep between batches.
+        """
+        try:
+            from ib_insync import Option
+
+            ib = self._conn.connect()
+
+            if expiration is None:
+                exps = self.get_options_expirations(ticker)
+                if not exps:
+                    return None
+                expiration = exps[0]
+
+            # Get spot price
+            stock = Stock(ticker, "SMART", "USD")
+            ib.qualifyContracts(stock)
+            [ticker_data] = ib.reqTickers(stock)
+            ib.sleep(0.5)
+            spot = ticker_data.marketPrice()
+            if not spot or spot != spot:  # NaN check
+                spot = ticker_data.close or 0
+
+            # Get available strikes for this expiration
+            params = ib.reqSecDefOptParams(
+                underlyingSymbol=ticker,
+                futFopExchange="",
+                underlyingSecType="STK",
+                underlyingConId=stock.conId,
+            )
+            ib.sleep(0.5)
+
+            ib_exp = expiration.replace("-", "")
+            strikes: list[float] = []
+            for p in params:
+                if ib_exp in p.expirations:
+                    strikes = sorted(p.strikes)
+                    break
+
+            if not strikes or spot <= 0:
+                return None
+
+            # Filter to strikes within 30% of spot to limit requests
+            filtered = [k for k in strikes if 0.7 * spot <= k <= 1.3 * spot]
+            if not filtered:
+                filtered = strikes[:20]
+
+            calls: list[dict[str, Any]] = []
+            puts: list[dict[str, Any]] = []
+
+            # Batch: build contracts, request market data
+            for right, dest in [("C", calls), ("P", puts)]:
+                contracts = []
+                for k in filtered:
+                    opt = Option(ticker, ib_exp, k, right, "SMART")
+                    contracts.append(opt)
+
+                qualified = ib.qualifyContracts(*contracts)
+                ib.sleep(0.5)
+
+                for opt_contract in qualified:
+                    if not opt_contract.conId:
+                        continue
+                    try:
+                        [t] = ib.reqTickers(opt_contract)
+                        ib.sleep(0.1)  # pacing
+
+                        greeks = t.modelGreeks or t.lastGreeks
+                        iv = None
+                        delta = gamma = theta = vega = None
+                        if greeks:
+                            iv = round(greeks.impliedVol * 100, 2) if greeks.impliedVol and greeks.impliedVol > 0 else None
+                            delta = greeks.delta
+                            gamma = greeks.gamma
+                            theta = greeks.theta
+                            vega = greeks.vega
+
+                        dest.append({
+                            "strike": float(opt_contract.strike),
+                            "last_price": t.last if t.last == t.last else None,
+                            "bid": t.bid if t.bid and t.bid > 0 else None,
+                            "ask": t.ask if t.ask and t.ask > 0 else None,
+                            "volume": int(t.volume) if t.volume and t.volume == t.volume else 0,
+                            "open_interest": 0,  # requires separate request
+                            "implied_vol": iv,
+                            "delta": delta,
+                            "gamma": gamma,
+                            "theta": theta,
+                            "vega": vega,
+                            "in_the_money": (opt_contract.strike < spot) if right == "C" else (opt_contract.strike > spot),
+                        })
+                    except Exception:
+                        continue
+
+            return {
+                "ticker": ticker,
+                "expiration": expiration,
+                "provider": self.name,
+                "spot": spot,
+                "calls": sorted(calls, key=lambda c: c["strike"]),
+                "puts": sorted(puts, key=lambda c: c["strike"]),
+            }
+        except Exception as e:
+            logger.warning("Failed to get options chain for %s: %s", ticker, e)
+            return None
+
+    def get_iv_surface(
+        self, ticker: str, num_expirations: int = 5
+    ) -> dict[str, Any] | None:
+        """Build an IV surface from IB options data."""
+        try:
+            from bds_data_providers.options_utils import build_iv_surface_from_chains
+
+            exps = self.get_options_expirations(ticker)
+            if not exps:
+                return None
+
+            if len(exps) <= num_expirations:
+                selected = exps
+            else:
+                step = len(exps) / num_expirations
+                selected = [exps[int(i * step)] for i in range(num_expirations)]
+
+            # Get spot
+            ib = self._conn.connect()
+            stock = Stock(ticker, "SMART", "USD")
+            ib.qualifyContracts(stock)
+            [ticker_data] = ib.reqTickers(stock)
+            ib.sleep(0.5)
+            spot = ticker_data.marketPrice()
+            if not spot or spot != spot:
+                spot = ticker_data.close or 0
+            if spot <= 0:
+                return None
+
+            chains = []
+            for exp in selected:
+                chain = self.get_options_chain(ticker, exp)
+                if chain:
+                    chains.append(chain)
+
+            if not chains:
+                return None
+
+            return build_iv_surface_from_chains(
+                ticker=ticker,
+                provider_name=self.name,
+                spot=spot,
+                chains=chains,
+            )
+        except Exception as e:
+            logger.warning("Failed to build IV surface for %s: %s", ticker, e)
+            return None
+
     def disconnect(self) -> None:
         """Disconnect from IB."""
         self._conn.disconnect()
