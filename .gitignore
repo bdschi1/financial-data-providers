@@ -60,3 +60,4 @@ hf_cache/
 results/
 outputs/
 logs/
+.mcp.json
