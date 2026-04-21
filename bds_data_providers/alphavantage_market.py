@@ -101,6 +101,9 @@ class AlphaVantageMarketProvider(MarketDataProvider):
     def name(self) -> str:
         return "Alpha Vantage"
 
+    def quality_score(self) -> float:
+        return 0.60
+
     # ------------------------------------------------------------------
     # Low-level API helper
     # ------------------------------------------------------------------
@@ -423,6 +426,82 @@ class AlphaVantageMarketProvider(MarketDataProvider):
         except Exception as e:
             logger.error("Failed to get history for %s: %s", ticker, e)
             return pd.DataFrame()
+
+    # ------------------------------------------------------------------
+    # Options (REALTIME_OPTIONS / HISTORICAL_OPTIONS — premium tier)
+    # ------------------------------------------------------------------
+
+    def get_options_expirations(self, ticker: str) -> list[str] | None:
+        """Return available option expirations for *ticker* or None on failure.
+
+        Uses Alpha Vantage's REALTIME_OPTIONS endpoint. Requires a premium
+        API key; free keys will return an empty result and this returns
+        None so the consumer can fall back to another provider.
+        """
+        try:
+            data = self._api_call({
+                "function": "REALTIME_OPTIONS",
+                "symbol": ticker,
+            })
+            entries = data.get("data") or []
+            if not entries:
+                return None
+            expirations = sorted({e.get("expiration") for e in entries if e.get("expiration")})
+            return expirations or None
+        except Exception as e:
+            logger.info("AV options_expirations unavailable for %s: %s", ticker, e)
+            return None
+
+    def get_options_chain(
+        self,
+        ticker: str,
+        expiration: str | None = None,
+    ) -> dict | None:
+        """Return an option chain for *ticker* at *expiration* or None.
+
+        Same standardized dict shape as Yahoo: {expiration, calls, puts}
+        where calls/puts are lists of {strike, bid, ask, volume,
+        open_interest, implied_volatility}. Premium tier required.
+        """
+        try:
+            data = self._api_call({
+                "function": "REALTIME_OPTIONS",
+                "symbol": ticker,
+            })
+            entries = data.get("data") or []
+            if not entries:
+                return None
+
+            if expiration is None:
+                expirations = sorted({e.get("expiration") for e in entries if e.get("expiration")})
+                if not expirations:
+                    return None
+                expiration = expirations[0]
+
+            selected = [e for e in entries if e.get("expiration") == expiration]
+            if not selected:
+                return None
+
+            def _row(e: dict) -> dict:
+                return {
+                    "strike": _safe_float(e, "strike"),
+                    "bid": _safe_float(e, "bid"),
+                    "ask": _safe_float(e, "ask"),
+                    "volume": _safe_int(e, "volume"),
+                    "open_interest": _safe_int(e, "open_interest"),
+                    "implied_volatility": _safe_float(e, "implied_volatility"),
+                }
+
+            calls = [_row(e) for e in selected if str(e.get("type", "")).lower() == "call"]
+            puts = [_row(e) for e in selected if str(e.get("type", "")).lower() == "put"]
+
+            calls.sort(key=lambda r: r["strike"])
+            puts.sort(key=lambda r: r["strike"])
+
+            return {"expiration": expiration, "calls": calls, "puts": puts}
+        except Exception as e:
+            logger.info("AV options_chain unavailable for %s: %s", ticker, e)
+            return None
 
     # ------------------------------------------------------------------
     # Financial statement helpers

@@ -153,6 +153,10 @@ class IBMarketProvider(MarketDataProvider):
     def name(self) -> str:
         return "Interactive Brokers"
 
+    def quality_score(self) -> float:
+        from bds_data_providers.ib import _HAS_IB
+        return 0.85 if _HAS_IB else 0.0
+
     # ------------------------------------------------------------------
     # Low-level helpers
     # ------------------------------------------------------------------

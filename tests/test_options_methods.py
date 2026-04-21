@@ -73,24 +73,53 @@ class TestABCDefaults:
         assert p.get_iv_surface("AAPL") is None
 
 
-class TestAlphaVantageInheritsDefaults:
-    """AlphaVantage should inherit None defaults for options methods."""
+class TestAlphaVantageOptions:
+    """AlphaVantage now implements options via REALTIME_OPTIONS (premium tier).
 
-    def test_alphavantage_options_expirations(self):
-        """AlphaVantage.get_options_expirations should return None."""
-        from bds_data_providers.alphavantage_market import AlphaVantageMarketProvider
+    Tests mock the _api_call to avoid premium-key/rate-limit dependencies.
+    Free keys or missing data return None so consumers can fall back.
+    """
 
-        # Patch to avoid needing real API key
-        with patch.dict("os.environ", {"ALPHAVANTAGE_API_KEY": "test"}):
-            p = AlphaVantageMarketProvider(api_key="test")
-            assert p.get_options_expirations("AAPL") is None
-
-    def test_alphavantage_options_chain(self):
+    def test_alphavantage_empty_returns_none(self):
         from bds_data_providers.alphavantage_market import AlphaVantageMarketProvider
 
         with patch.dict("os.environ", {"ALPHAVANTAGE_API_KEY": "test"}):
             p = AlphaVantageMarketProvider(api_key="test")
-            assert p.get_options_chain("AAPL") is None
+            with patch.object(p, "_api_call", return_value={"data": []}):
+                assert p.get_options_expirations("AAPL") is None
+                assert p.get_options_chain("AAPL") is None
+
+    def test_alphavantage_api_failure_returns_none(self):
+        from bds_data_providers.alphavantage_market import AlphaVantageMarketProvider
+
+        with patch.dict("os.environ", {"ALPHAVANTAGE_API_KEY": "test"}):
+            p = AlphaVantageMarketProvider(api_key="test")
+            with patch.object(p, "_api_call", side_effect=RuntimeError("premium only")):
+                assert p.get_options_expirations("AAPL") is None
+                assert p.get_options_chain("AAPL") is None
+
+    def test_alphavantage_chain_schema(self):
+        from bds_data_providers.alphavantage_market import AlphaVantageMarketProvider
+
+        stub = {
+            "data": [
+                {"expiration": "2026-05-16", "type": "call", "strike": "100",
+                 "bid": "5.0", "ask": "5.2", "volume": "50", "open_interest": "200",
+                 "implied_volatility": "0.25"},
+                {"expiration": "2026-05-16", "type": "put", "strike": "100",
+                 "bid": "3.0", "ask": "3.1", "volume": "40", "open_interest": "150",
+                 "implied_volatility": "0.28"},
+            ]
+        }
+        with patch.dict("os.environ", {"ALPHAVANTAGE_API_KEY": "test"}):
+            p = AlphaVantageMarketProvider(api_key="test")
+            with patch.object(p, "_api_call", return_value=stub):
+                assert p.get_options_expirations("AAPL") == ["2026-05-16"]
+                chain = p.get_options_chain("AAPL")
+                assert chain["expiration"] == "2026-05-16"
+                assert len(chain["calls"]) == 1
+                assert len(chain["puts"]) == 1
+                assert chain["calls"][0]["strike"] == 100.0
 
     def test_alphavantage_iv_surface(self):
         from bds_data_providers.alphavantage_market import AlphaVantageMarketProvider

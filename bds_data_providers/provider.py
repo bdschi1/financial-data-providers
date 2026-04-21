@@ -41,6 +41,17 @@ class DataProvider(ABC):
         """
         return False
 
+    def quality_score(self) -> float:
+        """Composite data-quality score in [0.0, 1.0] for provider selection.
+
+        Combines: availability (is the underlying service reachable),
+        feature coverage (bid/ask, options, fundamentals), and known
+        reliability/cost tradeoffs. Consumers use this to rank providers
+        when multiple are configured (e.g. prefer BBG > IB > Yahoo if all
+        are up). Default implementation returns 0.5; subclasses override.
+        """
+        return 0.5
+
     @abstractmethod
     def fetch_daily_prices(
         self,

@@ -115,6 +115,9 @@ class YahooProvider(DataProvider):
     def name(self) -> str:
         return "Yahoo Finance"
 
+    def quality_score(self) -> float:
+        return 0.55
+
     @property
     def supports_bid_ask(self) -> bool:
         return False

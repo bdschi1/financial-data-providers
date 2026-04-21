@@ -38,6 +38,8 @@ from typing import Any
 
 import polars as pl
 
+from bds_data_providers._bbg_fields import validate_fields
+from bds_data_providers._retry import network_retry
 from bds_data_providers.provider import DataProvider
 
 logger = logging.getLogger(__name__)
@@ -210,10 +212,14 @@ class BloombergProvider(DataProvider):
     def supports_bid_ask(self) -> bool:
         return True
 
+    def quality_score(self) -> float:
+        return 0.95 if _HAS_BLPAPI else 0.0
+
     # ------------------------------------------------------------------
     # Daily prices via //blp/refdata HistoricalDataRequest
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_daily_prices(
         self,
         tickers: list[str],
@@ -234,6 +240,8 @@ class BloombergProvider(DataProvider):
         except (ConnectionError, ImportError) as exc:
             logger.error("Bloomberg connection failed: %s", exc)
             return empty
+
+        validate_fields(self._DAILY_FIELDS)
 
         refdata = session.getService("//blp/refdata")
         request = refdata.createRequest("HistoricalDataRequest")
@@ -302,6 +310,7 @@ class BloombergProvider(DataProvider):
     # Ticker info via //blp/refdata ReferenceDataRequest
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_ticker_info(self, ticker: str) -> dict:
         """Fetch fundamental reference data for a single ticker."""
         defaults = {
@@ -379,6 +388,7 @@ class BloombergProvider(DataProvider):
     # Current prices -- last price from reference data
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_current_prices(self, tickers: list[str]) -> dict[str, float]:
         """Fetch latest price for each ticker."""
         prices: dict[str, float] = {}
@@ -425,6 +435,7 @@ class BloombergProvider(DataProvider):
     # Risk-free rate -- US 3-month T-bill
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_risk_free_rate(self) -> float:
         """Fetch 3-month T-bill rate from Bloomberg.
 

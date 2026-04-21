@@ -165,6 +165,10 @@ class BloombergMarketProvider(MarketDataProvider):
     def name(self) -> str:
         return "Bloomberg"
 
+    def quality_score(self) -> float:
+        from bds_data_providers.bloomberg import _HAS_BLPAPI
+        return 0.95 if _HAS_BLPAPI else 0.0
+
     # ------------------------------------------------------------------
     # Low-level helpers
     # ------------------------------------------------------------------

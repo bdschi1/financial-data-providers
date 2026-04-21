@@ -30,6 +30,9 @@ class YahooMarketProvider(MarketDataProvider):
     def name(self) -> str:
         return "Yahoo Finance"
 
+    def quality_score(self) -> float:
+        return 0.55
+
     def get_ticker_object(self, ticker: str) -> Any:
         """Return a yf.Ticker object for the given symbol."""
         return yf.Ticker(ticker)

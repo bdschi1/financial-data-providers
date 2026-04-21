@@ -34,6 +34,7 @@ from typing import Any
 
 import polars as pl
 
+from bds_data_providers._retry import network_retry
 from bds_data_providers.provider import DataProvider
 
 logger = logging.getLogger(__name__)
@@ -194,6 +195,9 @@ class IBProvider(DataProvider):
     def name(self) -> str:
         return "Interactive Brokers"
 
+    def quality_score(self) -> float:
+        return 0.85 if _HAS_IB else 0.0
+
     @property
     def supports_bid_ask(self) -> bool:
         return True
@@ -202,6 +206,7 @@ class IBProvider(DataProvider):
     # Daily prices via reqHistoricalData
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_daily_prices(
         self,
         tickers: list[str],
@@ -355,6 +360,7 @@ class IBProvider(DataProvider):
     # Ticker info via reqFundamentalData / contract details
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_ticker_info(self, ticker: str) -> dict:
         """Fetch fundamental data from IB contract details + fundamentals.
 
@@ -414,6 +420,7 @@ class IBProvider(DataProvider):
     # Current prices -- snapshot via reqMktData
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_current_prices(self, tickers: list[str]) -> dict[str, float]:
         """Fetch latest price for each ticker using IB market data snapshot."""
         prices: dict[str, float] = {}
@@ -455,6 +462,7 @@ class IBProvider(DataProvider):
     # Risk-free rate -- US 3-month T-bill via IB IRX Index
     # ------------------------------------------------------------------
 
+    @network_retry
     def fetch_risk_free_rate(self) -> float:
         """Fetch 3-month T-bill rate from IB via IRX Index.
 

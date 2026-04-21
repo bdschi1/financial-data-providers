@@ -100,6 +100,9 @@ class AlphaVantageProvider(DataProvider):
     def supports_bid_ask(self) -> bool:
         return False
 
+    def quality_score(self) -> float:
+        return 0.60
+
     # ------------------------------------------------------------------
     # Low-level API helper
     # ------------------------------------------------------------------

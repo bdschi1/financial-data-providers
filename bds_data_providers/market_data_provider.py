@@ -34,6 +34,16 @@ class MarketDataProvider(ABC):
         """Human-readable provider name (override in subclasses)."""
         return type(self).__name__
 
+    def quality_score(self) -> float:
+        """Composite data-quality score in [0.0, 1.0] for provider selection.
+
+        Combines feature coverage (options, fundamentals, insider data),
+        known reliability, and cost tradeoffs. Consumers use this to rank
+        providers when multiple are configured. Default is 0.5; subclasses
+        override with a provider-specific value.
+        """
+        return 0.5
+
     # ------------------------------------------------------------------
     # Core data methods
     # ------------------------------------------------------------------
