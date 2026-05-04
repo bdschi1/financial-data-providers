@@ -6,6 +6,7 @@
 ![Yahoo Finance](https://img.shields.io/badge/Yahoo_Finance-6001D2?style=flat&logo=yahoo&logoColor=white)
 ![Bloomberg](https://img.shields.io/badge/Bloomberg-000000?style=flat&logo=bloomberg&logoColor=white)
 ![Interactive Brokers](https://img.shields.io/badge/Interactive_Brokers-D71920?style=flat)
+![tests](https://img.shields.io/badge/tests-139%20passing-brightgreen?style=flat)
 
 A shared Python package that provides a single, consistent interface for pulling market data from multiple sources — Yahoo Finance, Alpha Vantage, Bloomberg, and Interactive Brokers. Instead of each project writing its own data-fetching code, they install this package and get the same provider logic, the same fallback behavior, and the same optional Bloomberg/IB integration path.
 
@@ -76,6 +77,18 @@ Methods:
 - `get_earnings_history(ticker) -> Any` — earnings surprise history
 - `get_quarterly_earnings(ticker) -> Any` — quarterly revenue/earnings
 - `get_history(ticker, period) -> Any` — historical OHLCV as pandas DataFrame
+
+## Policy
+
+One interface, many backends, zero surprises.
+
+1. **Two ABCs for two data shapes.** DataProvider (Polars) serves bulk time-series consumers; MarketDataProvider (dict/pandas) serves agent tool layers -- each consumer gets the contract it needs.
+2. **Yahoo is always the floor.** Yahoo Finance ships free and is always available; Bloomberg, IB, and Alpha Vantage are optional upgrades auto-detected at import time.
+3. **Safe fallback, never crash.** get_provider_safe() and get_market_provider_safe() never raise -- if the requested provider fails, they silently fall back to Yahoo.
+4. **Single package, many consumers.** Four repos install the same package instead of each writing its own data-fetching code -- one fix propagates everywhere.
+5. **No hidden state.** Factory caching returns the same provider instance per session; clear_cache() resets cleanly.
+
+The tool exists so every repo in the ecosystem pulls market data through one consistent, tested interface instead of reinventing provider logic.
 
 ### Four Providers
 
@@ -196,6 +209,8 @@ bds_data_providers/
     ib_market.py             # IBMarketProvider(MarketDataProvider)
     alphavantage.py          # AlphaVantageProvider(DataProvider)
     alphavantage_market.py   # AlphaVantageMarketProvider(MarketDataProvider)
+    options_utils.py         # Shared IV surface-building utilities for options chains
+    sharpe_inference.py      # Sharpe ratio inference: PSR, MinTRL, critical SR, FDR, FWER corrections
 tests/
     test_provider_abc.py
     test_factory.py
