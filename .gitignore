@@ -71,3 +71,7 @@ how_it_works*
 how-it-works*
 how_to_use*
 how-to-use*
+
+# Internal Claude Code config — never publish
+.claude/
+CLAUDE.md
